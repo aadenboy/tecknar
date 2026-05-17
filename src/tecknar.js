@@ -83,6 +83,8 @@ class Tecknar { // means "drawing" in Swedish :P
         > it may be handy to enable this!
       - saveTKA (boolean): enable saving as a .tka file (default true)
         * note: this only applies if save is enabled
+      - saveJSON (boolean): enable saving as a .json file (default true)
+        * note: this only applies if save is enabled
       - porting (boolean): enable import and export buttons (default true)
         > it may be handy to enable this!
       - resize (boolean): enable resizing (default true)
@@ -147,6 +149,7 @@ class Tecknar { // means "drawing" in Swedish :P
         brushOpacity: true,
         save: true,
         saveTKA: true,
+        saveJSON: true,
         porting: true,
         resize: true,
         ...options
@@ -160,7 +163,6 @@ class Tecknar { // means "drawing" in Swedish :P
     this.layerTreeMutated = true; // whether the tree has been mutated since the last cache
     this.undoStack = [];
     this.undoPointer = -1;
-    this.device = window.navigator.userAgent.match(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i) ? "touch" : "mouse";
     this.brush = {
       type: "pen",
       size: 10,
@@ -313,7 +315,7 @@ class Tecknar { // means "drawing" in Swedish :P
 
     this.canvasbar = document.createElement("div");
     this.canvasbar.classList.add("tecknar-canvasbar");
-    this.canvasScale = this.#quickInput("range", "canvas-scale", 100, false, "Canvas scale"); // actually for the size of the element itself
+    this.canvasScale = this.#quickInput("range", "canvas-scale", 100, false, "Canvas scale", true); // actually for the size of the element itself
     this.canvasScale.min = 0;
     this.canvasScale.max = 100;
     this.canvasScale.step = 1;
@@ -402,12 +404,15 @@ class Tecknar { // means "drawing" in Swedish :P
     this.bottombar.classList.add("tecknar-bottombar");
     this.saveButton = this.#quickButton("Save");
     this.saveButton.classList.add("tecknar-save");
-    this.importButton = this.#quickButton("Import", null, () => {
+    this.importFile = this.#quickInput("file", "import-file", "", false, "Import file", true);
+    this.importFile.accept = ".tka,.json";
+    this.importFile.parentNode.classList.add("tecknar-import-file");
+    this.importButton = this.#quickButton("Import clipboard", null, () => {
       navigator.clipboard.readText().then((text) => this.import(text));
     });
     this.importButton.classList.add("tecknar-import");
     this.exportButton = this.#quickButton("Export", null, () => {
-      navigator.clipboard.writeText(this.export());
+      navigator.clipboard.writeText(this.export().data);
     });
     this.exportButton.classList.add("tecknar-export");
     this.clearButton = this.#quickButton("Clear", null, () => this.clear());
@@ -441,10 +446,10 @@ class Tecknar { // means "drawing" in Swedish :P
       )
     });
     this.resizeButton.classList.add("tecknar-resize");
-    this.bottombar.append(this.saveButton, this.importButton, this.exportButton, this.clearButton, this.canvasWidth.parentNode, this.canvasHeight.parentNode, this.resizeButton);
+    this.bottombar.append(this.saveButton, this.importFile.parentNode, this.importButton, this.exportButton, this.clearButton, this.canvasWidth.parentNode, this.canvasHeight.parentNode, this.resizeButton);
 
     this.link = document.createElement("a");
-    this.link.href = "https://github.com/aadenboy/Tecknar";
+    this.link.href = "https://github.com/aadenboy/tecknar";
     this.link.target = "_blank";
     this.link.innerHTML = " GitHub";
     this.link.classList.add("bi", "bi-github");
@@ -479,6 +484,9 @@ class Tecknar { // means "drawing" in Swedish :P
     this.saveTKA = document.createElement("option");
     this.saveTKA.value = ".tka";
     this.saveTKA.innerHTML = ".tka";
+    this.saveJSON = document.createElement("option");
+    this.saveJSON.value = ".json";
+    this.saveJSON.innerHTML = ".json";
     this.saveFormats.value = ".png";
     this.saveFormatsContainer.appendChild(this.saveFormats);
     this.saveFormatsContainer.classList.add("tecknar-save-formats");
@@ -487,8 +495,18 @@ class Tecknar { // means "drawing" in Swedish :P
       const name = this.saveName.value || ("Drawing " + new Date().toISOString().slice(0, 10));
       const link = document.createElement("a");
       if (format == ".tka") {
+        const {compressed} = this.export(); // no base64 :)
+        let data = "4:";
+        for (let i = 0; i < compressed.length; i++) {
+          data += String.fromCharCode(compressed[i]);
+        }
+        console.log(data);
         link.download = name + format;
-        link.href = "data:text/plain;charset=utf-8," + encodeURIComponent(this.export());
+        link.href = "data:application/octet-stream," + encodeURIComponent(data);
+      } else if (format == ".json") {
+        const object = {width: this.settings.width, height: this.settings.height, layers: this.layers}
+        link.download = name + format;
+        link.href = "data:application/json," + encodeURIComponent(JSON.stringify(object));
       } else {
         const link = document.createElement("a");
         link.download = name + format;
@@ -497,39 +515,52 @@ class Tecknar { // means "drawing" in Swedish :P
       link.click();
       this.saveModal.close();
     });
+    this.importFile.addEventListener("change", () => {
+      const file = this.importFile.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        console.log(e);
+        if (file.name.endsWith(".tka")) {
+          let string = e.target.result;
+          let [_, version, params, binary] = (string.match(/^(\d+)([a-z]*):(.+)/s) ?? [null, "1", "", string])
+          let data = version + params + ":" + btoa(binary);
+          console.log(0, version, params, binary, data);
+          this.import(data);
+        } else if (file.name.endsWith(".json")) {
+          const object = JSON.parse(e.target.result);
+          this.settings.width = object.width;
+          this.settings.height = object.height;
+          this.layers = object.layers;
+          this.layers.forEach((layer) => {
+            layer.cache = null;
+            layer.cacheCtx = null;
+            layer.workingCanvas = null;
+            layer.workingCtx = null;
+          });
+          this.refreshCanvas();
+          this.refreshLayerbar();
+        }
+      };
+      reader.readAsText(file);
+    })
     this.saveConfirm.classList.add("tecknar-save-confirm");
     this.saveModal.append(this.saveName.parentNode, this.saveFormats.parentNode, this.saveConfirm);
     this.container.appendChild(this.saveModal);
+    
     
     this.state(() => {});
     this.undoButton.disabled = true;
     this.refresh();
 
     this.container.setAttribute("tabindex", 0);
-    this.container.addEventListener("keydown", (e) => {console.log("down");this.keyDown(e)});
+    this.container.addEventListener("keydown", (e) => this.keyDown(e));
     this.container.addEventListener("keyup", (e) => this.keyUp(e));
 
-    if (this.device == "mouse") {
-      this.canvas.addEventListener("mousedown", (e) => this.startStroke(e.offsetX, e.offsetY));
-      this.canvas.addEventListener("mousemove", (e) => this.continueStroke(e.offsetX, e.offsetY));
-      this.canvas.addEventListener("mouseenter", (e) => this.continueStroke(e.offsetX, e.offsetY));
-      document.addEventListener("mouseup", () => this.endStroke());
-    } else {
-      this.canvas.addEventListener("touchstart", (e) => {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        this.startStroke(x, y);
-      });
-      this.canvas.addEventListener("touchmove", (e) => {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const y = e.touches[0].clientY - rect.top;
-        this.continueStroke(x, y);
-      });
-      document.addEventListener("touchend", () => this.endStroke());
-      this.canvas.addEventListener("touchcancel", () => this.endStroke());
-    }
+    this.canvas.addEventListener("pointerdown", (e) => {this.startStroke(e.offsetX, e.offsetY); e.preventDefault()});
+    this.canvas.addEventListener("pointermove", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
+    document.addEventListener("pointerup", () => this.endStroke());
+    this.canvas.addEventListener("pointerenter", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
+    this.canvas.addEventListener("pointerleave", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
   }
   // or just use the container directly
   mount(object) {
@@ -651,6 +682,12 @@ class Tecknar { // means "drawing" in Swedish :P
     this.fillToggle.checked = this.brush.fill;
     this.eraseToggle.checked = this.brush.erase;
     this.toolbar.style.display = toolSettings.pen || toolSettings.line || toolSettings.rect || toolSettings.circle || toggleSettings.fill || toggleSettings.erase ? "" : "none";
+    this.penTool.title = "Pen (" + this.settings.keybinds.pen + ")";
+    this.lineTool.title = "Line (" + this.settings.keybinds.line + ")";
+    this.rectTool.title = "Rectangle (" + this.settings.keybinds.rect + ")";
+    this.circleTool.title = "Circle (" + this.settings.keybinds.circle + ")";
+    this.fillToggle.title = "Fill (" + this.settings.keybinds.fill + ")";
+    this.eraseToggle.title = "Erase (" + this.settings.keybinds.erase + ")";
     this.settings.keybinds.penCallback = () => this.penTool.click();
     this.settings.keybinds.lineCallback = toolSettings.line ? () => this.lineTool.click() : null;
     this.settings.keybinds.rectCallback = toolSettings.rect ? () => this.rectTool.click() : null;
@@ -679,6 +716,10 @@ class Tecknar { // means "drawing" in Swedish :P
     this.redoButton.style.display = options.history ? "" : "none";
     this.redoButton.disabled = this.undoPointer == this.undoStack.length - 1;
     this.topbar.style.display = options.brushSize || colorSettings.brush || options.brushOpacity || options.history ? "" : "none";
+    this.swapColors.title = "Swap colors (" + this.settings.keybinds.swapColors + ")";
+    this.linkedColors.title = "Link colors (" + this.settings.keybinds.linkColors + ")";
+    this.undoButton.title = "Undo (" + this.settings.keybinds.undo + ")";
+    this.redoButton.title = "Redo (" + this.settings.keybinds.redo + ")";
     this.settings.keybinds.swapColorsCallback = colorSettings.brush && colorSettings.fill && toggleSettings.fill ? () => this.swapColors.click() : null;
     this.settings.keybinds.linkColorsCallback = colorSettings.brush && colorSettings.fill && toggleSettings.fill ? () => this.linkedColors.click() : null;
     this.settings.keybinds.undoCallback = options.history ? () => this.undoButton.click() : null;
@@ -697,6 +738,13 @@ class Tecknar { // means "drawing" in Swedish :P
     this.layerOptions.style.display = layerOptionsSettings.name || layerOptionsSettings.opacity || layerOptionsSettings.blend ? "" : "none";
     this.groupLayerButton.style.display = this.layerOptions.style.display;
     this.ungroupLayerButton.style.display = this.layerOptions.style.display;
+    this.layerPassthrough.remove();
+    this.addLayerButton.title = "Add layer (" + this.settings.keybinds.addLayer + ")";
+    this.removeLayerButton.title = "Remove layer (" + this.settings.keybinds.removeLayer + ")";
+    this.layerUpButton.title = "Move layer up (" + this.settings.keybinds.layerUp + ")";
+    this.layerDownButton.title = "Move layer down (" + this.settings.keybinds.layerDown + ")";
+    this.groupLayerButton.title = "Group layer (" + this.settings.keybinds.groupLayer + ")";
+    this.ungroupLayerButton.title = "Ungroup layer(s) (" + this.settings.keybinds.ungroupLayer + ")";
     this.settings.keybinds.addLayerCallback = options.layers ? () => this.addLayerButton.click() : null;
     this.settings.keybinds.removeLayerCallback = options.layers ? () => this.removeLayerButton.click() : null;
     this.settings.keybinds.layerUpCallback = options.layers ? () => this.layerUpButton.click() : null;
@@ -735,6 +783,7 @@ class Tecknar { // means "drawing" in Swedish :P
     for (let i = 0; i < this.layers.length; i++) {
       const layer = this.layers[i];
       const type = layer.type ?? "layer";
+      const name = type[0].toUpperCase() + type.slice(1);
       if (type == "ungroup") {
         currentGroup = currentGroup.parentNode.parentNode; // ew!
         continue;
@@ -755,6 +804,7 @@ class Tecknar { // means "drawing" in Swedish :P
         )
       });
       toggle.checked = layer.visible;
+      toggle.title = "Toggle layer (" + this.settings.keybinds.toggleLayer + ")";
       li.appendChild(toggle.parentNode);
       
       const label = document.createElement("label");
@@ -762,7 +812,7 @@ class Tecknar { // means "drawing" in Swedish :P
       label.appendChild(input);
       if (!layer.name) {
         const il = document.createElement("i");
-        il.innerHTML = "Layer"
+        il.innerHTML = name
         label.appendChild(il);
       } else label.appendChild(document.createTextNode(layer.name));
       input.addEventListener("click", () => {
@@ -775,7 +825,7 @@ class Tecknar { // means "drawing" in Swedish :P
         label.lastChild.remove();
         if (!layer.name) {
           const il = document.createElement("i");
-          il.innerHTML = "Layer"
+          il.innerHTML = name
           label.appendChild(il);
         } else label.appendChild(document.createTextNode(layer.name));
       });
@@ -804,6 +854,7 @@ class Tecknar { // means "drawing" in Swedish :P
           )
         });
         collapse.checked = layer.expanded;
+        collapseLabel.title = "Fold layer";
         collapseLabel.append(collapse.parentNode, collapseIcon);
         li.insertBefore(collapseLabel, li.firstChild);
       } else if (layer.cache) {
@@ -814,19 +865,28 @@ class Tecknar { // means "drawing" in Swedish :P
   refreshBottombar() {
     const options = this.settings.options;
     this.saveButton.style.display = options.save ? "" : "none";
+    const usefile = (options.saveTKA || options.saveJSON) && options.porting && options.save;
+    this.importFile.parentNode.style.display = usefile ? "" : "none";
     this.importButton.style.display = options.porting ? "" : "none";
+    this.importButton.innerHTML = usefile ? "Import clipboard" : "Import";
     this.exportButton.style.display = options.porting ? "" : "none";
     this.clearButton.style.display = options.clear ? "" : "none";
     this.canvasWidth.parentNode.style.display = options.resize ? "" : "none";
     this.canvasHeight.parentNode.style.display = options.resize ? "" : "none";
     this.resizeButton.style.display = options.resize ? "" : "none";
     this.bottombar.style.display = options.save || options.porting || options.clear || options.resize ? "" : "none";
+    this.clearButton.title = "Clear canvas (" + this.settings.keybinds.clear + ")";
+    this.saveButton.title = "Save (" + this.settings.keybinds.save + ")";
+    this.importButton.title = "Import (" + this.settings.keybinds.import + ")";
+    this.exportButton.title = "Export (" + this.settings.keybinds.export + ")";
     this.settings.keybinds.clearCallback = options.clear ? () => this.clearButton.click() : null;
     this.settings.keybinds.saveCallback = options.save ? () => this.saveButton.click() : null;
     this.settings.keybinds.importCallback = options.porting ? () => this.importButton.click() : null;
     this.settings.keybinds.exportCallback = options.porting ? () => this.exportButton.click() : null;
     if (!this.settings.options.saveTKA) this.saveTKA.remove();
     else this.saveFormats.appendChild(this.saveTKA);
+    if (!this.settings.options.saveJSON) this.saveJSON.remove();
+    else this.saveFormats.appendChild(this.saveJSON);
   }
   repositionCanvas() {
     this.canvas.style.transform = `scale(${this.viewportZoom})`;
@@ -933,7 +993,6 @@ class Tecknar { // means "drawing" in Swedish :P
   // adds a layer directly above the current one
   addLayer() {
     const index = this.layerPointer;
-    this.layerPointer++;
     this.state(
       () => {
         this.layers.splice(index - 1, 1);
@@ -1085,7 +1144,8 @@ class Tecknar { // means "drawing" in Swedish :P
     for (let keybindName in this.settings.keybinds) {
       const keybind = this.settings.keybinds[keybindName];
       if (typeof keybind != "string") continue;
-      if (keybind.match("\\b" + e.key.toLowerCase() + "\\b") && (keybind.match("ctrl\\+") ? this.brush.ctrlHeld : !this.brush.ctrlHeld) && (keybind.match("shift\\+") ? this.brush.shiftHeld : !this.brush.shiftHeld)) {
+      let key = e.key.replace(/[\[\]\{\}\(\)\\\+\*\?\^\$\|]/g, "\\$&");
+      if (keybind.match("\\+" + key.toLowerCase() + "$") && (keybind.match("ctrl\\+") ? this.brush.ctrlHeld : !this.brush.ctrlHeld) && (keybind.match("shift\\+") ? this.brush.shiftHeld : !this.brush.shiftHeld)) {
         this.settings.keybinds[keybindName + "Callback"]?.();
         e.preventDefault();
       }
@@ -1147,8 +1207,8 @@ class Tecknar { // means "drawing" in Swedish :P
         break;
       }
     }
-    ctx.stroke();
     if (stroke.fill) ctx.fill();
+    ctx.stroke();
   }
   // draws a layer onto a context, or reuses a cache if possible
   redrawLayer(layer, live) {
@@ -1197,6 +1257,7 @@ class Tecknar { // means "drawing" in Swedish :P
     group.canvas = parent ? parent.canvas : new OffscreenCanvas(this.canvas.width, this.canvas.height);
     group.ctx = group.canvas.getContext("2d");
     for (let child of group.children) {
+      if (!child.object.visible) continue;
       if (child.type == "group") {
         this.drawGroup(
           child,
@@ -1222,7 +1283,7 @@ class Tecknar { // means "drawing" in Swedish :P
   // absolute position based on viewport
   absolute(x, y) {
     if (!isFinite(x) || !isFinite(y)) throw new Error("Tecknar.absolute() requires an x and y coordinate to convert.");
-    return [x * (this.viewportZoom) / (this.canvasScale.value / 100), y * (this.viewportZoom) / (this.canvasScale.value / 100)];
+    return [(x * (this.viewportZoom) / (this.canvasScale.value / 100))|0, (y * (this.viewportZoom) / (this.canvasScale.value / 100))|0];
   }
   // adds a new stroke to the active layer
   startStroke(x, y) {
@@ -1534,7 +1595,7 @@ class Tecknar { // means "drawing" in Swedish :P
     let data = "4:" + btoa(binary); // wow!!!! four!!!!
     data = data.replace(/\+/g, "-").replace(/\//g, "/").replace(/=/g, "");
     this.data = data;
-    return data;
+    return {data, bytes, compressed};
   }
   // imports the data for the canvas
   // this also upgrades previous codes to the new format
