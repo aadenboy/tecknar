@@ -1,6 +1,8 @@
 # Tecknar
 Tecknar ([the Swedish present indicative for "to draw"](https://en.wiktionary.org/wiki/teckna#Swedish)) is a simple, embeddable drawing program for whatever website you're running. It is currently in a testing phase.
 
+![A drawing of a cat with the text "WOW!" in Tecknar.](weow.png)
+
 Try it out for yourself at https://aadenboy.github.io/tecknar/!
 
 ## Installation
