@@ -508,7 +508,6 @@ class Tecknar { // means "drawing" in Swedish :P
         link.download = name + format;
         link.href = "data:application/json," + encodeURIComponent(JSON.stringify(object));
       } else {
-        const link = document.createElement("a");
         link.download = name + format;
         link.href = this.canvas.toDataURL("image/" + format.slice(1));
       }
