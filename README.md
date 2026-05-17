@@ -106,6 +106,8 @@ The constructor takes two objects which correspond to Tecknar's settings (config
 ```
 
 ## License
+Bootstrap Icons is from https://github.com/twbs/icons, and is under the MIT license.
+
 pako.js is from https://github.com/nodeca/pako, and is under the MIT license.
 
 jscolorpicker is from https://github.com/wipeautcrafter/jscolorpicker, and is under the MIT license.
