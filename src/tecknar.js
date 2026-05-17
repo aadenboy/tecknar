@@ -1492,6 +1492,7 @@ class Tecknar { // means "drawing" in Swedish :P
       attributes: string
         a: use absolute coordinates
         (attribute l is no longer used)
+        o: use stroke opacity (I forgot to implement it in the peior version...)
     group: 0xfe[opacity][blending][metadata]<string (name)>
       opacity: number (0-255)
       blending: number (0-255)
@@ -1557,7 +1558,7 @@ class Tecknar { // means "drawing" in Swedish :P
       );
       for (let stroke of layer.strokes) {
         const mode = (stroke.erase ? 0x01 : 0x00) | (stroke.fill ? 0x02 : 0x00);
-        const opacity = (stroke.opacity * 255)|0;
+        const opacity = (stroke.opacity * 100)|0;
         const color = this.#splithex(stroke.color);
         const fillColor = this.#splithex(stroke.fillColor);
         const size = this.#encodeNumber(stroke.size);
@@ -1587,7 +1588,7 @@ class Tecknar { // means "drawing" in Swedish :P
             stroke.y2 = Math.max(stroke.y2, 0);
             canvasdata.push(
               {line: 0x01, rect: 0x02, circle: 0x03}[stroke.type],
-              mode, ...color, ...fillColor, ...size,
+              mode, opacity, ...color, ...fillColor, ...size,
               ...this.#encodeNumber(stroke.x1), ...this.#encodeNumber(stroke.y1),
               ...this.#encodeNumber(stroke.x2), ...this.#encodeNumber(stroke.y2)
             );
@@ -1626,8 +1627,7 @@ class Tecknar { // means "drawing" in Swedish :P
 
     let i = 0;
     function l(s, d) {
-      //console.log(i, s, d, typeof d == "number" ? "0x"+d.toString(16).padStart(2, "0") : "",
-      //           "\n\tnext bytes: ", bytes.slice(i, i+15).toString());
+      //console.log(i, s, d, typeof d == "number" ? "0x"+d.toString(16).padStart(2, "0") : "", bytes.slice(i, i+15).toString());
     }
     if (version < 4) [this.settings.width, this.settings.height] = [250, 200];
     else {
@@ -1655,7 +1655,7 @@ class Tecknar { // means "drawing" in Swedish :P
         }
         case 0xfe: {
           bracket++;
-          const opacity = bytes[i] / 255; i++;
+          const opacity = bytes[i] / 100; i++;
           l("opacity", opacity);
           const blending = bytes[i]; i++;
           l("blending", blending);
@@ -1671,7 +1671,7 @@ class Tecknar { // means "drawing" in Swedish :P
           break;
         }
         case 0xff: {
-          const opacity = bytes[i] / 255; i++;
+          const opacity = bytes[i] / 100; i++;
           l("opacity", opacity);
           const blending = bytes[i]; i++;
           l("blending", blending);
@@ -1690,7 +1690,7 @@ class Tecknar { // means "drawing" in Swedish :P
           const mode = version < 3 ? 0 : bytes[i];
           i += version < 3 ? 0 : 1;
           l("mode", mode);
-          const opacity = useBrushOpacity ? bytes[i] / 255 : 1;
+          const opacity = useBrushOpacity ? bytes[i] / 100 : 1;
           i += useBrushOpacity ? 1 : 0;
           l("opacity", opacity);
           const erase = mode & 0x01;
@@ -1721,6 +1721,7 @@ class Tecknar { // means "drawing" in Swedish :P
             type: ["pen", "line", "rect", "circle"][type],
             erase: !!erase,
             fill: !!fill,
+            opacity: opacity,
             color: this.#joinhex(r, g, b, a),
             fillColor: this.#joinhex(fillR, fillG, fillB, fillA),
             size: size,
