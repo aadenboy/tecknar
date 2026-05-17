@@ -101,6 +101,8 @@ The constructor takes two objects which correspond to Tecknar's settings (config
         > it may be handy to enable this!
       - saveTKA (boolean): enable saving as a .tka file (default true)
         * note: this only applies if save is enabled
+      - saveJSON (boolean): enable saving as a .json file (default true)
+        * note: this only applies if save is enabled
       - porting (boolean): enable import and export buttons (default true)
         > it may be handy to enable this!
       - resize (boolean): enable resizing (default true)
