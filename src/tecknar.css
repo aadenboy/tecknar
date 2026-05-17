@@ -14,14 +14,15 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: row;
-  align-items: top;
+  align-items: flex-start;
   justify-content: center;
   gap: 1em;
   width: 100%;
   background-color: #ececec;
   padding: 1em 0;
 }
-.tecknar-container button {
+.tecknar-container button, .tecknar-import-file {
+  font-size: 14px;
   padding: 4px 6px;
   cursor: pointer;
   background-color: #fff;
@@ -44,15 +45,18 @@
   height: 20px;
   text-align: center;
 }
-.tecknar-container button:hover {
+.tecknar-container button:hover, .tecknar-import-file:hover {
   background-color: #eee;
 }
-.tecknar-container button:active {
-  background-color: #d8d8d8;
+.tecknar-container button:active, .tecknar-import-file:active {
+  background-color: #d8d8d8;a
 }
 .tecknar-container button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+.tecknar-import-file input {
+  display: none;
 }
 
 .tecknar-canvasbar {
@@ -66,20 +70,13 @@
   width: 100%;
   box-sizing: border-box;
 }
-.tecknar-canvasbar label {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5em;
-}
 
 .tecknar-canvas-container {
   flex: none;
   align-self: center;
   display: flex;
   flex-direction: column;
-  align-items: top;
+  align-items: flex-start;
   justify-content: left;
   overflow: auto;
   border: 1px solid #000;
@@ -173,7 +170,7 @@
   flex: 0 1 30%;
   display: flex;
   flex-direction: row;
-  align-items: top;
+  align-items: flex-start;
   justify-content: center;
   gap: 1em;
   height: 100%;
@@ -182,7 +179,7 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  align-items: top;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.5em;
   height: 100%;
@@ -195,7 +192,7 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  align-items: top;
+  align-items: flex-start;
   justify-content: left;
   list-style: none;
   gap: 0.1em;
@@ -218,6 +215,9 @@
 .tecknar-layer-list ul {
   padding-left: 1em;
 }
+.tecknar-layer-group > label:first-child {
+  cursor: pointer;
+}
 .tecknar-layer-list li:has(> label .tecknar-layer-collapse:not(:checked)) > ul {
   display: none;
 }
@@ -228,14 +228,14 @@
   flex: 0 1 10%;
   display: flex;
   flex-direction: column;
-  align-items: top;
+  align-items: flex-start;
   justify-content: left;
   gap: 0.5em;
 }
 .tecknar-layer-options label {
   display: flex;
   flex-direction: row;
-  align-items: top;
+  align-items: flex-start;
   justify-content: left;
   gap: 0.5em;
 }
