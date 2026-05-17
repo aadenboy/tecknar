@@ -1146,7 +1146,9 @@ class Tecknar { // means "drawing" in Swedish :P
       const keybind = this.settings.keybinds[keybindName];
       if (typeof keybind != "string") continue;
       let key = e.key.replace(/[\[\]\{\}\(\)\\\+\*\?\^\$\|]/g, "\\$&");
-      if (keybind.match("\\+" + key.toLowerCase() + "$") && (keybind.match("ctrl\\+") ? this.brush.ctrlHeld : !this.brush.ctrlHeld) && (keybind.match("shift\\+") ? this.brush.shiftHeld : !this.brush.shiftHeld)) {
+      if (keybind.slice(-key.length) == key
+          && (keybind.match("ctrl\\+") ? this.brush.ctrlHeld : !this.brush.ctrlHeld)
+          && (keybind.match("shift\\+") ? this.brush.shiftHeld : !this.brush.shiftHeld)) {
         this.settings.keybinds[keybindName + "Callback"]?.();
         e.preventDefault();
       }
