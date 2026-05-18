@@ -5,7 +5,6 @@ class Tecknar { // means "drawing" in Swedish :P
     settings (object): a set of settings for the canvas
       - width (int): the initial width of the canvas (default 250)
       - height (int): the initial height of the canvas (default 200)
-      - maxLayers (int): the maximum number of layers (default 256)
       - maxBrushSize (int): the maximum brush size (default 50)
       - minWidth (int): the minimum width of the canvas (default 1)
       - minHeight (int): the minimum height of the canvas (default 1)
@@ -98,7 +97,6 @@ class Tecknar { // means "drawing" in Swedish :P
     this.settings = {
       width: 250,
       height: 200,
-      maxLayers: 256,
       maxBrushSize: 50,
       minWidth: 1,
       minHeight: 1,
