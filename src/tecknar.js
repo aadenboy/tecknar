@@ -204,7 +204,7 @@ class Tecknar { // means "drawing" in Swedish :P
       "color",
       "luminosity",
     ];
-    
+
     // DOM
     this.container = document.createElement("div");
     this.container.classList.add("tecknar-container");
@@ -237,7 +237,7 @@ class Tecknar { // means "drawing" in Swedish :P
     this.toolbar = document.createElement("ul");
     this.toolbar.classList.add("tecknar-toolbar");
     this.toolbar.setAttribute("role", "toolbar");
-    
+
     this.penTool = this.#quickTool("pencil", "pen");
     this.penTool.checked = true;
     this.penTool.parentNode.classList.add("tecknar-tool-active");
@@ -337,7 +337,7 @@ class Tecknar { // means "drawing" in Swedish :P
     this.zoomOut.classList.add("tecknar-zoom-out");
     this.zoomOut.setAttribute("aria-label", "Zoom out");
     this.canvasbar.append(this.canvasScale.parentNode);//, this.zoomIn, this.zoomOut); // zoom has weird scaling artifacts. dunno wtf is with it
-    
+
     this.layerbar = document.createElement("div"); // contains both
     this.layerbar.classList.add("tecknar-layerbar");
     this.layerListContainer = document.createElement("div");
@@ -345,7 +345,7 @@ class Tecknar { // means "drawing" in Swedish :P
     this.layerList = document.createElement("ul");
     this.layerList.classList.add("tecknar-layer-list");
     this.layerList.setAttribute("role", "listbox");
-    
+
     this.layerControls = document.createElement("div"); // quick actions
     this.layerControls.classList.add("tecknar-layer-controls");
     this.addLayerButton = this.#quickButton(null, "plus-lg", () => this.addLayer());
@@ -362,7 +362,7 @@ class Tecknar { // means "drawing" in Swedish :P
     this.ungroupLayerButton.classList.add("tecknar-ungroup-layer");
     this.layerControls.append(this.addLayerButton, this.layerUpButton, this.layerDownButton, this.removeLayerButton, this.groupLayerButton, this.ungroupLayerButton);
     this.layerListContainer.append(this.layerControls, this.layerList);
-    
+
     this.layerOptions = document.createElement("div"); // specific settings
     this.layerOptions.classList.add("tecknar-layer-options");
     this.layerName = this.#quickInput("text", "layer-name", "", false, "Layer name", true);
@@ -452,7 +452,7 @@ class Tecknar { // means "drawing" in Swedish :P
     this.link.innerHTML = " GitHub";
     this.link.classList.add("bi", "bi-github");
     this.bottombar.appendChild(this.link);
-    
+
     this.containerMiddle.append(this.toolbar, this.canvasContainer, this.layerbar);
     this.container.append(this.topbar, this.canvasbar, this.containerMiddle, this.bottombar);
 
@@ -543,21 +543,21 @@ class Tecknar { // means "drawing" in Swedish :P
     this.saveConfirm.classList.add("tecknar-save-confirm");
     this.saveModal.append(this.saveName.parentNode, this.saveFormats.parentNode, this.saveConfirm);
     this.container.appendChild(this.saveModal);
-    
-    
+
     this.state(() => {});
     this.undoButton.disabled = true;
     this.refresh();
 
+    this.canvas.setAttribute("tabindex", 0);
     this.container.setAttribute("tabindex", 0);
     this.container.addEventListener("keydown", (e) => this.keyDown(e));
     this.container.addEventListener("keyup", (e) => this.keyUp(e));
 
-    this.canvas.addEventListener("pointerdown", (e) => {this.startStroke(e.offsetX, e.offsetY); e.preventDefault()});
-    this.canvas.addEventListener("pointermove", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
+    this.canvas.addEventListener("pointerdown", (e) => this.startStroke(e.offsetX, e.offsetY));
+    this.canvas.addEventListener("pointermove", (e) => this.continueStroke(e.offsetX, e.offsetY));
     document.addEventListener("pointerup", () => this.endStroke());
-    this.canvas.addEventListener("pointerenter", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
-    this.canvas.addEventListener("pointerleave", (e) => {this.continueStroke(e.offsetX, e.offsetY); e.preventDefault()});
+    this.canvas.addEventListener("pointerenter", (e) => this.continueStroke(e.offsetX, e.offsetY));
+    this.canvas.addEventListener("pointerleave", (e) => this.continueStroke(e.offsetX, e.offsetY));
   }
   // or just use the container directly
   mount(object) {
@@ -629,7 +629,7 @@ class Tecknar { // means "drawing" in Swedish :P
     end += endsequal ? 1 : 0;
     return [points[0], points[end]];
   }
-    
+
   // methods
 
   // DOM
@@ -785,7 +785,7 @@ class Tecknar { // means "drawing" in Swedish :P
         currentGroup = currentGroup.parentNode.parentNode; // ew!
         continue;
       }
-      
+
       const li = document.createElement("li");
       li.classList.add("tecknar-layer-" + type);
       currentGroup.appendChild(li);
@@ -803,7 +803,7 @@ class Tecknar { // means "drawing" in Swedish :P
       toggle.checked = layer.visible;
       toggle.title = "Toggle layer (" + this.settings.keybinds.toggleLayer + ")";
       li.appendChild(toggle.parentNode);
-      
+
       const label = document.createElement("label");
       const input = this.#quickInput("radio", "layer", i, i == this.layerPointer, "");
       label.appendChild(input);
@@ -992,12 +992,12 @@ class Tecknar { // means "drawing" in Swedish :P
     const index = this.layerPointer;
     this.state(
       () => {
-        this.layers.splice(index - 1, 1);
+        this.layers.splice(index, 1);
         this.refreshLayerbar();
         this.layerTreeMutated = true;
       },
       () => {
-        this.layers.splice(index - 1, 0, {opacity: 1, blending: 0, strokes: [], visible: true});
+        this.layers.splice(index, 0, {opacity: 1, blending: 0, strokes: [], visible: true});
         this.refreshLayerbar();
         this.layerTreeMutated = true;
       }
@@ -1156,7 +1156,7 @@ class Tecknar { // means "drawing" in Swedish :P
     if (e.key == "Shift") this.brush.shiftHeld = false;
     if (e.key == "Control" || e.key == "Meta") this.brush.ctrlHeld = false;
   }
-  
+
   // canvas methods
   // reorganizes the layer data into a tree
   reorganize() {
