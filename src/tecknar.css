@@ -49,7 +49,7 @@
   background-color: #eee;
 }
 .tecknar-container button:active, .tecknar-import-file:active {
-  background-color: #d8d8d8;a
+  background-color: #d8d8d8;
 }
 .tecknar-container button:disabled {
   background-color: #ccc;
@@ -84,12 +84,18 @@
 }
 .tecknar-canvas, .tecknar-layer-list canvas {
   background: conic-gradient(white 0deg 90deg, #eee 90deg 180deg, white 180deg 270deg, #eee 270deg 360deg);
-  background-size: 20px 20px;
+  background-size: calc(var(--zoom, 1) * 20px) calc(var(--zoom, 1) * 20px);
+  background-position: calc(50% - var(--x, 0) * var(--zoom, 1)) calc(50% - var(--y, 0) * var(--zoom, 1));
   background-repeat: repeat;
   transform-origin: top left;
   touch-action: none;
   user-select: none;
   pointer-events: auto;
+  outline: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .tecknar-toolbar {

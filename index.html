@@ -2,17 +2,31 @@
 <html style="background: #fff;">
   <head>
     <title>Tecknar</title>
+    <link rel="stylesheet" href="style.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Tecknar is a simple embeddable drawing pad for the web" />
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="/tecknar/src/colorpicker.min.css" />
-    <script src="/tecknar/src/colorpicker.iife.min.js"></script>
-    <script src="/tecknar/src/pako.min.js"></script>
-    <script src="/tecknar/src/tecknar.js"></script>
-    <link rel="stylesheet" href="/tecknar/src/tecknar.css" />
+    <link rel="stylesheet" href="colorpicker.min.css" />
+    <script src="colorpicker.iife.min.js"></script>
+    <script src="pako.min.js"></script>
+    <script src="tecknar.js"></script>
+    <link rel="stylesheet" href="tecknar.css" />
+    <style>
+      #dn-a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: sans-serif;
+        margin-top: 1em;
+      }
+    </style>
   </head>
   <body>
     <div id="contain"></div>
+    <div id="dn-a"><span>Like what you see? Consider <a href="https://github.com/sponsors/aadenboy">supporting me</a> on GitHub Sponsors!</span>
+    <span style="color: #0008; font-size: 0.8em; margin-left: 1em;">(this message will not be shown if you embed Tecknar)</span>
+    </div>
     <script>
       const tecknar = new Tecknar();
       tecknar.mount("#contain");

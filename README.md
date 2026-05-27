@@ -1,6 +1,8 @@
 # Tecknar
 Tecknar ([the Swedish present indicative for "to draw"](https://en.wiktionary.org/wiki/teckna#Swedish)) is a simple, embeddable drawing program for whatever website you're running. It is currently in a testing phase.
 
+[![GitHub Sponsor](https://img.shields.io/github/sponsors/aadenboy?label=Sponsor&logo=GitHub&color=c9e)](https://github.com/sponsors/aadenboy)
+
 ![A screenshot of Tecknar's interface with a drawing shown.](tecknar.png)
 
 Try it out for yourself at https://aadenboy.github.io/tecknar/!

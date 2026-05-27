@@ -174,6 +174,7 @@ class Tecknar { // means "drawing" in Swedish :P
       shiftHeld: false,
       ctrlHeld: false
     };
+    this.viewportPosition = [0, 0];
     this.viewportZoom = 1;
     this.data = ""; // filled later
     this.blendModeNames = [
@@ -213,15 +214,17 @@ class Tecknar { // means "drawing" in Swedish :P
 
     this.canvasContainer = document.createElement("div");
     this.canvasContainer.classList.add("tecknar-canvas-container");
-    this.canvas = document.createElement("canvas");
-    this.canvas.tabIndex = 0;
-    this.canvasContainer.appendChild(this.canvas);
-    this.canvas.width = this.settings.width;
-    this.canvas.height = this.settings.height;
-    this.canvas.classList.add("tecknar-canvas");
-    this.canvas.setAttribute("aria-label", "Tecknar canvas");
-    this.canvas.setAttribute("role", "img");
-    this.canvas.setAttribute("tabindex", "0");
+    this.viewportCanvas = document.createElement("canvas");
+    this.viewportCanvas.tabIndex = 0;
+    this.canvasContainer.appendChild(this.viewportCanvas);
+    this.viewportCanvas.width = this.settings.width;
+    this.viewportCanvas.height = this.settings.height;
+    this.viewportCanvas.classList.add("tecknar-canvas");
+    this.viewportCanvas.setAttribute("aria-label", "Tecknar canvas");
+    this.viewportCanvas.setAttribute("role", "img");
+    this.viewportCanvas.setAttribute("tabindex", "0");
+    this.viewportCtx = this.viewportCanvas.getContext("2d");
+    this.canvas = new OffscreenCanvas(this.settings.width, this.settings.height);
     this.ctx = this.canvas.getContext("2d");
     this.ctx.lineCap = "round";
     this.ctx.lineJoin = "round";
@@ -319,24 +322,22 @@ class Tecknar { // means "drawing" in Swedish :P
     this.canvasScale.step = 1;
     this.canvasScale.parentNode.classList.add("tecknar-canvas-scale");
     this.canvasScale.addEventListener("input", () => {
-      this.canvas.style.width = this.settings.width * this.canvasScale.value / 100 + "px";
-      this.canvas.style.height = this.settings.height * this.canvasScale.value / 100 + "px";
+      this.viewportCanvas.style.width = this.settings.width * this.canvasScale.value / 100 + "px";
+      this.viewportCanvas.style.height = this.settings.height * this.canvasScale.value / 100 + "px";
     });
     this.zoomIn = this.#quickButton(null, "zoom-in", () => {
-      this.viewportZoom *= 1.1;
-      this.viewportZoom = Math.min(this.viewportZoom, 10);
+      this.viewportZoom *= 1.25;
       this.repositionCanvas();
     });
     this.zoomIn.classList.add("tecknar-zoom-in");
     this.zoomIn.setAttribute("aria-label", "Zoom in");
     this.zoomOut = this.#quickButton(null, "zoom-out", () => {
-      this.viewportZoom /= 1.1;
-      this.viewportZoom = Math.max(this.viewportZoom, 1);
+      this.viewportZoom /= 1.25;
       this.repositionCanvas();
     });
     this.zoomOut.classList.add("tecknar-zoom-out");
     this.zoomOut.setAttribute("aria-label", "Zoom out");
-    this.canvasbar.append(this.canvasScale.parentNode);//, this.zoomIn, this.zoomOut); // zoom has weird scaling artifacts. dunno wtf is with it
+    this.canvasbar.append(this.canvasScale.parentNode, this.zoomIn, this.zoomOut);
 
     this.layerbar = document.createElement("div"); // contains both
     this.layerbar.classList.add("tecknar-layerbar");
@@ -548,16 +549,53 @@ class Tecknar { // means "drawing" in Swedish :P
     this.undoButton.disabled = true;
     this.refresh();
 
-    this.canvas.setAttribute("tabindex", 0);
+    this.viewportCanvas.setAttribute("tabindex", 0);
     this.container.setAttribute("tabindex", 0);
     this.container.addEventListener("keydown", (e) => this.keyDown(e));
     this.container.addEventListener("keyup", (e) => this.keyUp(e));
 
-    this.canvas.addEventListener("pointerdown", (e) => this.startStroke(e.offsetX, e.offsetY));
-    this.canvas.addEventListener("pointermove", (e) => this.continueStroke(e.offsetX, e.offsetY));
+    this.viewportCanvas.addEventListener("pointerdown", (e) => this.startStroke(e.offsetX, e.offsetY));
+    this.viewportCanvas.addEventListener("pointermove", (e) => this.continueStroke(e.offsetX, e.offsetY));
     document.addEventListener("pointerup", () => this.endStroke());
-    this.canvas.addEventListener("pointerenter", (e) => this.continueStroke(e.offsetX, e.offsetY));
-    this.canvas.addEventListener("pointerleave", (e) => this.continueStroke(e.offsetX, e.offsetY));
+    this.viewportCanvas.addEventListener("pointerenter", (e) => this.continueStroke(e.offsetX, e.offsetY));
+    this.viewportCanvas.addEventListener("pointerleave", (e) => this.continueStroke(e.offsetX, e.offsetY));
+    this.viewportCanvas.addEventListener("wheel", (e) => {
+      if (this.brush.ctrlHeld) {
+        this.viewportZoom *= 1.15 ** -Math.sign(e.deltaY);
+        this.repositionCanvas();
+        e.preventDefault();
+        return;
+      }
+      this.viewportPosition[0] += e.deltaX / this.viewportZoom;
+      this.viewportPosition[1] += e.deltaY / this.viewportZoom;
+      this.repositionCanvas();
+      e.preventDefault();
+    });
+    this.viewportCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.viewportCanvas.addEventListener("touchstart", (e) => {
+      if (e.touches.length < 2) return;
+      this.cancelStroke();
+      e.preventDefault();
+      this.dragStart = [0, 0];
+      for (let touch in e.touches) {
+        this.dragStart[0] += touch.clientX;
+        this.dragStart[1] += touch.clientY;
+      }
+      this.dragStart[0] /= e.touches.length;
+    });
+    this.viewportCanvas.addEventListener("touchmove", (e) => {
+      if (e.touches.length < 2) return;
+      e.preventDefault();
+      let dragEnd = [0, 0];
+      for (let touch in e.touches) {
+        dragEnd[0] += touch.clientX;
+        dragEnd[1] += touch.clientY;
+      }
+      dragEnd[0] /= e.touches.length;
+      this.viewportPosition[0] += (dragEnd[0] - this.dragStart[0]) * this.viewportZoom / (this.canvasScale.value / 100);
+      this.viewportPosition[1] += (dragEnd[1] - this.dragStart[1]) * this.viewportZoom / (this.canvasScale.value / 100);
+      this.repositionCanvas();
+    });
   }
   // or just use the container directly
   mount(object) {
@@ -636,15 +674,19 @@ class Tecknar { // means "drawing" in Swedish :P
   // usually elements self-maintain their state, but these are for when the settings change and other function calls
   // this one removes all of the caches so beware
   refreshCanvas() {
+    this.viewportCanvas.width = this.settings.width;
+    this.viewportCanvas.height = this.settings.height;
+    this.viewportCanvas.style.width = this.settings.width * this.canvasScale.value / 100 + "px";
+    this.viewportCanvas.style.height = this.settings.height * this.canvasScale.value / 100 + "px";
     this.canvas.width = this.settings.width;
     this.canvas.height = this.settings.height;
     this.ctx.lineCap = "round";
     this.ctx.lineJoin = "round";
-    this.canvas.style.width = this.settings.width * this.canvasScale.value / 100 + "px";
-    this.canvas.style.height = this.settings.height * this.canvasScale.value / 100 + "px";
     this.repositionCanvas();
-    this.canvasContainer.maxWidth = this.canvas.style.width;
-    this.canvasContainer.maxHeight = this.canvas.style.height;
+    this.canvas.width = this.settings.width;
+    this.canvas.height = this.settings.height;
+    this.canvasContainer.maxWidth = this.canvas.width;
+    this.canvasContainer.maxHeight = this.canvas.height;
     this.opacityCanvas.width = this.settings.width;
     this.opacityCanvas.height = this.settings.height;
     this.opacityCtx.lineCap = "round";
@@ -886,7 +928,23 @@ class Tecknar { // means "drawing" in Swedish :P
     else this.saveFormats.appendChild(this.saveJSON);
   }
   repositionCanvas() {
-    this.canvas.style.transform = `scale(${this.viewportZoom})`;
+    this.viewportZoom = Math.min(Math.max(this.viewportZoom, 1), 10);
+    const [w, h] = [this.canvas.width, this.canvas.height]
+    const [rw, rh] = [this.canvas.width/this.viewportZoom, this.canvas.height/this.viewportZoom]
+    console.log(w, h, this.viewportZoom, rw, rh)
+    this.viewportPosition[0] = Math.min(Math.max(this.viewportPosition[0], -w/2+rw/2), w/2-rw/2);
+    this.viewportPosition[1] = Math.min(Math.max(this.viewportPosition[1], -h/2+rh/2), h/2-rh/2);
+    this.viewportCtx.resetTransform();
+    this.viewportCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.viewportCtx.translate(
+      this.canvas.width/2-this.viewportPosition[0]*this.viewportZoom,
+      this.canvas.height/2-this.viewportPosition[1]*this.viewportZoom
+    );
+    this.viewportCtx.scale(this.viewportZoom, this.viewportZoom);
+    this.viewportCtx.drawImage(this.canvas, -this.canvas.width/2, -this.canvas.height/2);
+    this.viewportCanvas.style.setProperty("--zoom", this.viewportZoom);
+    this.viewportCanvas.style.setProperty("--x", this.viewportPosition[0] + "px");
+    this.viewportCanvas.style.setProperty("--y", this.viewportPosition[1] + "px");
   }
   // global refresh
   refresh() {
@@ -1187,7 +1245,7 @@ class Tecknar { // means "drawing" in Swedish :P
     switch (stroke.type) {
       case "pen": {
         if (!live) {
-          ctx.moveTo(stroke.points[0][0], stroke.points[0][1])
+          ctx.moveTo(stroke.points[0][0], stroke.points[0][1]);
           for (let i = 1; i < stroke.points.length; i++) {
             ctx.lineTo(stroke.points[i][0], stroke.points[i][1]);
           }
@@ -1280,11 +1338,20 @@ class Tecknar { // means "drawing" in Swedish :P
     this.drawGroup(tree, 1, live, {canvas: this.canvas, ctx: this.ctx});
     this.ctx.globalAlpha = 1;
     this.ctx.globalCompositeOperation = "source-over";
+    this.repositionCanvas();
   }
   // absolute position based on viewport
   absolute(x, y) {
     if (!isFinite(x) || !isFinite(y)) throw new Error("Tecknar.absolute() requires an x and y coordinate to convert.");
-    return [(x * (this.viewportZoom) / (this.canvasScale.value / 100))|0, (y * (this.viewportZoom) / (this.canvasScale.value / 100))|0];
+    x /= this.canvasScale.value / 100;
+    y /= this.canvasScale.value / 100;
+    let dx = this.canvas.width / 2 - x;
+    let dy = this.canvas.height / 2 - y;
+    dx = dx / this.viewportZoom - this.viewportPosition[0];
+    dy = dy / this.viewportZoom - this.viewportPosition[1];
+    const px = this.canvas.width / 2 - dx;
+    const py = this.canvas.height / 2 - dy;
+    return [px|0, py|0];
   }
   // adds a new stroke to the active layer
   startStroke(x, y) {
@@ -1376,7 +1443,9 @@ class Tecknar { // means "drawing" in Swedish :P
     const {layer} = this.getLayer();
     if (layer.type == "group") return;
     const stroke = layer.strokes.pop();
+    if (this.brush.type == "pen" && stroke.points.length == 1) stroke.points[1] = [...stroke.points[0]];
     if (this.brush.type == "pen") stroke.points = this.#DouglasPeucker(stroke.points);
+    let initial = true;
     this.state(
       () => {
         layer.strokes.pop();
@@ -1385,11 +1454,30 @@ class Tecknar { // means "drawing" in Swedish :P
       },
       () => {
         layer.strokes.push(stroke);
-        layer.cache = null;
+        if (initial) {
+          this.drawStroke(stroke);
+          layer.cacheCtx.globalAlpha = stroke.opacity;
+          layer.cacheCtx.globalCompositeOperation = stroke.erase ? "destination-out" : "source-over";
+          layer.cacheCtx.drawImage(this.opacityCanvas, 0, 0);
+          layer.workingCtx.globalAlpha = 1;
+          layer.workingCtx.globalCompositeOperation = "source-over";
+          layer.workingCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          layer.workingCtx.drawImage(layer.cache, 0, 0);
+          initial = false;
+        }
         this.redraw();
       }
     )
     this.refreshLayerbar();
+  }
+  // cancel existing stroke
+  cancelStroke() {
+    if (!this.brush.isDrawing) return;
+    this.brush.isDrawing = false;
+    const {layer} = this.getLayer();
+    if (layer.type == "group") return;
+    layer.strokes.pop();
+    this.redraw();
   }
 
   // data handling
@@ -1787,6 +1875,8 @@ class Tecknar { // means "drawing" in Swedish :P
         }
       }
     }
+    this.canvasWidth.value = this.settings.width;
+    this.canvasHeight.value = this.settings.height;
     this.layerPointer = 0;
     this.refreshCanvas();
     this.refreshLayerbar();
